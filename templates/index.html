@@ -267,7 +267,7 @@
                 this.messageInput = document.getElementById('messageInput');
                 this.sendButton = document.getElementById('sendButton');
                 this.chatForm = document.getElementById('chatForm');
-                
+
                 this.initEventListeners();
             }
             
@@ -300,7 +300,7 @@
                     const formData = new FormData;
                     formData.append('message', message);
                     
-                    const response = await fetch('/chat', {
+                    const response = await fetch('/api/chat', {
                         method: 'POST',
                         body: formData
                     });

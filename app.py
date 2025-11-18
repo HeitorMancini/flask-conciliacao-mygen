@@ -1,4 +1,3 @@
-print("oi")
 from flask import Flask, request, jsonify, render_template
 from unidecode import unidecode
 import pandas as pd
@@ -8,11 +7,9 @@ import uuid
 import re
 import os
 
-print("imports cocluidos")
-
 # -----| CONFIG |-----
-API_URL ="https://chat.int.bayer.com/api/v2"
-API_KEY = "mga-797f7606c1a9c4f7668a17dd7189f0f9873b31fd"
+API_URL = os.getenv(API_URL)
+API_KEY = os.getenv(API_KEY)
 ASSISTANT_ID = "db5a5273-9c09-48c9-837e-6d31e8490af9"
 
 HEADERS = {
@@ -24,8 +21,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_PATH = os.path.join(BASE_DIR, "src", "data.xlsx")
 
 app = Flask(__name__)
-
-print("config feita")
 
 # -----| IDENTIFICACAO DE FILTROS |-----
 def definir_filtros(user_msg):
@@ -74,8 +69,6 @@ def definir_filtros(user_msg):
     filtros = encontrados
     return filtros
 
-print("funcao de filtros lida")
-
 # -----| BUSCAR INFOS |-----
 def buscar_dados(filtros):
     df = pd.read_excel('src\data.xlsx', dtype=object)
@@ -88,41 +81,37 @@ def buscar_dados(filtros):
     busca_info = filtered_df.to_json(orient="records")
     return busca_info
 
-print("funcao pandas lida")
-
 # -----| ENVIAR MENSAGENS |-----
-def enviar_mensagem(sys_msg: str, user_msg: str, conversation_id: str = None): 
+def gerar_id(conversation_id: str = None): 
     if conversation_id is None:
         conversation_id = str(uuid.uuid4())
 
-    payload = {
-        "assistant_id": ASSISTANT_ID,
-        "conversation_id": conversation_id,
-        "stream": False,
-        "hidden": True,
-        "messages": [
-            {"role": "system", "content": sys_msg},
-            {"role": "user", "content": user_msg}
-        ]
-    }
+    # payload = {
+    #     "assistant_id": ASSISTANT_ID,
+    #     "conversation_id": conversation_id,
+    #     "stream": False,
+    #     "hidden": True,
+    #     "messages": [
+    #         {"role": "system", "content": sys_msg},
+    #         {"role": "user", "content": user_msg}
+    #     ]
+    # }
     
-    resp = requests.post(f"{API_URL}/chat/agent", json=payload, headers=HEADERS)
-    resp.raise_for_status()
+    # resp = requests.post(f"{API_URL}/chat/agent", json=payload, headers=HEADERS)
+    # resp.raise_for_status()
     
-    try:
-        data = resp.json()
-    except Exception:
-        data = {"raw_text": resp.text, "status_code": resp.status_code}
+    # try:
+    #     data = resp.json()
+    # except Exception:
+    #     data = {"raw_text": resp.text, "status_code": resp.status_code}
 
-    assistant_msg = None
-    try:
-        assistant_msg = data["choices"][0]["message"]["content"]
-    except Exception:
-        assistant_msg = json.dumps(data, ensure_ascii=False)
+    # assistant_msg = None
+    # try:
+    #     assistant_msg = data["choices"][0]["message"]["content"]
+    # except Exception:
+    #     assistant_msg = json.dumps(data, ensure_ascii=False)
 
-    return assistant_msg
-
-print("funcao de envio lida")
+    return conversation_id
 
 # -----| ROTAS FLASK |-----
 @app.route("/")
@@ -130,16 +119,21 @@ def index():
     return render_template("index.html")
 
 @app.route("/api/chat", methods=["POST"])
+
 def chat():
     user_msg = request.form.get('message', '')
-
     filtros = definir_filtros(user_msg)
     sys_msg = buscar_dados(filtros)
-    assistant_msg = enviar_mensagem(sys_msg, user_msg)
+    conversation_id = gerar_id()
 
-    return jsonify({'response': assistant_msg})
-
-print("flask")
+    return jsonify({
+        'assistant_id': ASSISTANT_ID,
+        'conversation_id': conversation_id,
+        'api_key': API_KEY,
+        'api_url': API_URL,
+        'context': sys_msg,
+        'user': user_msg
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
