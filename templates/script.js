@@ -1,10 +1,3 @@
-// ====== CONFIGURAÇÃO ======
-const CONFIG = { // INFORMAÇÕES SENSÍVEIS
-    baseURL: 'https://chat.int.bayer.com/api/v2',
-    apiKey: 'mga-797f7606c1a9c4f7668a17dd7189f0f9873b31fd', 
-    assistantId: 'db5a5273-9c09-48c9-837e-6d31e8490af9' 
-};
-
 // ====== CLIENTE myGenAssist ======
 class MyGenAssistClient {
     constructor(baseURL, apiKey, assistantId) {
@@ -15,19 +8,27 @@ class MyGenAssistClient {
 
     async sendMessage(messages, options = {}) {
         const payload = {
-            messages: messages,
-            assistant_id: this.assistantId,
-            stream: options.stream || false,
-            conversation_id: options.conversation_id,
-            hidden: options.hidden || false,
-            ...options
+            assistant_id: ,
+            conversation_id: conversation_id,
+            stream: false,
+            hidden: true,
+            messages: [
+                {
+                    role: "system"
+                    content: sys_msg
+                },
+                {
+                    role: "user",
+                    content: message
+                }
+            ]
         };
 
         const response = await fetch(`${this.baseURL}/chat/agent`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-baychatgpt-accesstoken': this.apiKey
+                'Content-Type': 'applications/json',
+                'x-baychatgpt-accesstoken': this.api_key
             },
             body: JSON.stringify(payload)
         });
