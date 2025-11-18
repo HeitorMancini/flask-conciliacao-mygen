@@ -7,23 +7,17 @@ import uuid
 import re
 import os
 
-# -----| CONFIG |-----
-API_URL = os.getenv(API_URL)
-API_KEY = os.getenv(API_KEY)
-ASSISTANT_ID = "db5a5273-9c09-48c9-837e-6d31e8490af9"
-
-HEADERS = {
-    "Content-Type": "application/json",
-    "x-baychatgpt-accesstoken": API_KEY
-}
-
+# ----| CONFIG |----
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_PATH = os.path.join(BASE_DIR, "src", "data.xlsx")
 
 app = Flask(__name__)
 
 # -----| IDENTIFICACAO DE FILTROS |-----
-def definir_filtros(user_msg):
+def definir_filtros(user_msg, conversation_id: str = None):
+    if conversation_id is None:
+        conversation_id = str(uuid.uuid4())
+    
     abreviacoes = {
         "PR": "PRSC SOJA",
         "RS": "RS SOJA",
@@ -67,7 +61,7 @@ def definir_filtros(user_msg):
             encontrados.append(nome_associado)
 
     filtros = encontrados
-    return filtros
+    return filtros, conversation_id
 
 # -----| BUSCAR INFOS |-----
 def buscar_dados(filtros):
@@ -81,59 +75,42 @@ def buscar_dados(filtros):
     busca_info = filtered_df.to_json(orient="records")
     return busca_info
 
-# -----| ENVIAR MENSAGENS |-----
-def gerar_id(conversation_id: str = None): 
-    if conversation_id is None:
-        conversation_id = str(uuid.uuid4())
-
-    # payload = {
-    #     "assistant_id": ASSISTANT_ID,
-    #     "conversation_id": conversation_id,
-    #     "stream": False,
-    #     "hidden": True,
-    #     "messages": [
-    #         {"role": "system", "content": sys_msg},
-    #         {"role": "user", "content": user_msg}
-    #     ]
-    # }
-    
-    # resp = requests.post(f"{API_URL}/chat/agent", json=payload, headers=HEADERS)
-    # resp.raise_for_status()
-    
-    # try:
-    #     data = resp.json()
-    # except Exception:
-    #     data = {"raw_text": resp.text, "status_code": resp.status_code}
-
-    # assistant_msg = None
-    # try:
-    #     assistant_msg = data["choices"][0]["message"]["content"]
-    # except Exception:
-    #     assistant_msg = json.dumps(data, ensure_ascii=False)
-
-    return conversation_id
-
 # -----| ROTAS FLASK |-----
 @app.route("/")
 def index():
-    return render_template("index.html")
+
+    # -----| VARIAVEIS FRONT - AQUI|-----
+    
+
+    HEADERS = {
+        "Content-Type": "application/json",
+        "x-baychatgpt-accesstoken": API_KEY
+    }
+    return render_template("index.html",
+                           api_url=API_URL,
+                           api_key=API_KEY,
+                           assistant_id=ASSISTANT_ID,
+                           headers=HEADERS)
 
 @app.route("/api/chat", methods=["POST"])
 
 def chat():
-    user_msg = request.form.get('message', '')
-    filtros = definir_filtros(user_msg)
-    sys_msg = buscar_dados(filtros)
-    conversation_id = gerar_id()
+    user_msg = request.form.get('message', '').strip()
 
-    return jsonify({
-        'assistant_id': ASSISTANT_ID,
-        'conversation_id': conversation_id,
-        'api_key': API_KEY,
-        'api_url': API_URL,
-        'context': sys_msg,
-        'user': user_msg
-    })
+    if not user_msg:
+        return jsonify({'error': 'A mensagem não pode estar vazia'}), 400
+    
+    try:
+        filtros, conversation_id = definir_filtros(user_msg)
+        sys_msg = buscar_dados(filtros)
 
+        return jsonify({
+            'conversation_id': conversation_id,
+            'context': sys_msg,
+            'user': user_msg
+        })
+    except Exception as e:
+        return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
